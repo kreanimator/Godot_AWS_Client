@@ -43,7 +43,20 @@ func _ready():
 	submit_button.pressed.connect(_on_submit_pressed)
 	cancel_button.pressed.connect(_on_cancel_pressed)
 
+	# Set default values for testing
+	_set_default_values()
 	_update_ui_for_mode()
+
+func _set_default_values():
+	# Default values for testing
+	email_field.text = "vltndev@gmail.com"
+	password_field.text = "VlTn1234!"
+	confirm_password_field.text = "VlTn1234!"
+	username_field.text = "vall"
+	
+	# For testing: switch to sign-in mode since user already exists
+	is_sign_up_mode = false
+	print("=== Testing Mode: Switched to Sign In (user already exists) ===")
 
 func _on_sign_in_tab_pressed():
 	if not is_loading:
@@ -143,54 +156,85 @@ func _start_authentication() -> void:
 	_set_loading_state(false)
 	is_loading = false
 
-# -------- Sign Up (+ optional immediate confirm if you add code UI) --------
+# -------- Sign Up with Email Confirmation --------
 func _do_signup_and_optional_confirm(region: String, client_id: String) -> void:
 	var email := email_field.text.strip_edges()
 	var password := password_field.text
 	var username := username_field.text.strip_edges()
 
 	_show_auth_status("Creating account…")
-	var res = await _cognito_call(region, "SignUp", {
+	print("=== Sign Up Request ===")
+	print("Email: ", email)
+	print("Username: ", username)
+	print("Client ID: ", client_id)
+	
+	var res := await _cognito_call(region, "SignUp", {
 		"ClientId": client_id,
-		"Username": email,           # using email as username
+		"Username": email,
 		"Password": password,
 		"UserAttributes": [
 			{"Name": "email", "Value": email},
 			{"Name": "preferred_username", "Value": username}
 		]
 	})
-
+	
+	print("Sign Up response: ", res)
+	
 	if res.get("__error__", false):
 		_show_error(_friendly_cognito_error(res))
 		authentication_failed.emit(error_label.text)
 		return
 
-	# If your pool requires email confirmation, Cognito sends a code.
-	# OPTIONAL: if you add a field for the confirmation code, confirm here.
-	# Example (uncomment if you add a code input called confirm_code_field):
-	# var code = confirm_code_field.text.strip_edges()
-	# if code != "":
-	#     _show_auth_status("Confirming email…")
-	#     var conf = await _cognito_call(region, "ConfirmSignUp", {
-	#         "ClientId": client_id,
-	#         "Username": email,
-	#         "ConfirmationCode": code
-	#     })
-	#     if conf.get("__error__", false):
-	#         _show_error(_friendly_cognito_error(conf))
-	#         authentication_failed.emit(error_label.text)
-	#         return
+	# Ask for code immediately (since your pool requires confirmation)
+	_show_auth_status("Please check your email for the verification code.")
+	
+	while true:
+		var code := await _prompt_confirm_code(email, region, client_id)
+		if code == "":
+			# User cancelled the dialog - show helpful message and switch to sign in
+			_show_error("Email confirmation cancelled. Please check your email and use the Sign In tab to confirm later.")
+			is_sign_up_mode = false
+			_update_ui_for_mode()
+			authentication_failed.emit("Email confirmation cancelled")
+			return
+			
+		_show_auth_status("Confirming…")
+		print("=== Confirming Sign Up ===")
+		print("Email: ", email)
+		print("Code: ", code)
+		print("Client ID: ", client_id)
+		print("Region: ", region)
+		
+		var conf := await _cognito_call(region, "ConfirmSignUp", {
+			"ClientId": client_id,
+			"Username": email,
+			"ConfirmationCode": code
+		})
+		
+		print("Confirmation response: ", conf)
+		print("Has error: ", conf.get("__error__", false))
+		
+		if conf.get("__error__", false):
+			var error_msg = _friendly_cognito_error(conf)
+			print("Error message: ", error_msg)
+			_show_error(error_msg)
+			continue  # let user try again or resend
+		else:
+			# Success! Break out of the loop
+			print("Email confirmed successfully!")
+			print("Breaking out of confirmation loop")
+			break
 
-	_show_auth_status("Account created. Signing you in…")
-	await _do_login(region, client_id)  # attempt immediate login
+	_show_auth_status("Email confirmed. Signing you in…")
+	await _do_login(region, client_id)  # proceed
 
-# ---------------------------- Sign In --------------------------------------
+# ---------------------------- Sign In with Unconfirmed User Handling --------
 func _do_login(region: String, client_id: String) -> void:
 	var email := email_field.text.strip_edges()
 	var password := password_field.text
 
 	_show_auth_status("Signing in…")
-	var res = await _cognito_call(region, "InitiateAuth", {
+	var res := await _cognito_call(region, "InitiateAuth", {
 		"AuthFlow": "USER_PASSWORD_AUTH",
 		"ClientId": client_id,
 		"AuthParameters": {
@@ -199,23 +243,52 @@ func _do_login(region: String, client_id: String) -> void:
 		}
 	})
 
+	# If user not confirmed, run confirmation flow and retry login
+	if res.get("__error__", false):
+		var typ := str(res.get("raw", {}).get("__type", ""))
+		if typ.findn("UserNotConfirmedException") != -1:
+			_show_auth_status("Your email is not confirmed. Please enter the code.")
+			while true:
+				var code := await _prompt_confirm_code(email, region, client_id)
+				if code == "":
+					_show_error("Email not confirmed.")
+					authentication_failed.emit(error_label.text)
+					return
+				var conf := await _cognito_call(region, "ConfirmSignUp", {
+					"ClientId": client_id,
+					"Username": email,
+					"ConfirmationCode": code
+				})
+				if conf.get("__error__", false):
+					_show_error(_friendly_cognito_error(conf))
+					continue
+				break
+			# try login again after successful confirm
+			res = await _cognito_call(region, "InitiateAuth", {
+				"AuthFlow": "USER_PASSWORD_AUTH",
+				"ClientId": client_id,
+				"AuthParameters": {
+					"USERNAME": email,
+					"PASSWORD": password
+				}
+			})
+	# If still error (not due to confirmation), fail out
 	if res.get("__error__", false):
 		var msg = _friendly_cognito_error(res)
 		_show_error(msg)
 		authentication_failed.emit(msg)
 		return
 
-	# Handle challenges (MFA / NEW_PASSWORD_REQUIRED) if your pool enforces them.
+	# Challenges (MFA/NEW_PASSWORD_REQUIRED) can be handled here if you enable them
 	if res.has("ChallengeName"):
 		_show_error("Challenge required: %s" % res["ChallengeName"])
 		authentication_failed.emit(error_label.text)
 		return
 
-	var auth = res.get("AuthenticationResult", {})
-	var id_token = auth.get("IdToken", "")
-	var access_token = auth.get("AccessToken", "")
-	var refresh_token = auth.get("RefreshToken", "")
-
+	var auth: Dictionary = res.get("AuthenticationResult", {})
+	var id_token: String = auth.get("IdToken", "")
+	var access_token: String = auth.get("AccessToken", "")
+	var refresh_token: String = auth.get("RefreshToken", "")
 	if id_token == "":
 		_show_error("Login failed: empty token.")
 		authentication_failed.emit(error_label.text)
@@ -295,7 +368,91 @@ func _friendly_cognito_error(res: Dictionary) -> String:
 		return "Invalid confirmation code."
 	if typ.findn("ExpiredCodeException") != -1:
 		return "Confirmation code expired. Request a new one."
+	if typ.findn("LimitExceededException") != -1:
+		return "Too many attempts. Please wait a few minutes before trying again."
 	return (msg if msg != "" else "Authentication error (%s)" % typ)
+
+# =====================
+# = Email Confirmation Modal =
+# =====================
+# Show a modal asking for the confirmation code. Returns code (String) or "" if canceled.
+func _prompt_confirm_code(email: String, region: String, client_id: String) -> String:
+	var dlg := AcceptDialog.new()
+	dlg.title = "Confirm your email"
+	dlg.size = Vector2(400, 200)
+	dlg.min_size = Vector2(400, 200)
+	dlg.max_size = Vector2(400, 200)
+
+	# Layout
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.add_theme_constant_override("separation", 10)
+	
+	var lbl := Label.new()
+	lbl.text = "Enter the verification code sent to:\n" + email
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	
+	var code := LineEdit.new()
+	code.placeholder_text = "Enter 6-digit code here"
+	code.max_length = 12
+	code.text = ""
+	code.custom_minimum_size = Vector2(200, 30)
+	
+	box.add_child(lbl)
+	box.add_child(code)
+	dlg.add_child(box)
+
+	# Buttons: OK + Resend
+	dlg.get_ok_button().text = "Confirm"
+	dlg.add_button("Resend code", false, "resend")
+	
+	# Handle resend button
+	dlg.custom_action.connect(func(action):
+		if action == "resend":
+			_show_auth_status("Resending code…")
+			var r := await _cognito_call(region, "ResendConfirmationCode", {
+				"ClientId": client_id,
+				"Username": email
+			})
+			if r.get("__error__", false):
+				_show_error(_friendly_cognito_error(r))
+			else:
+				_show_auth_status("Verification code sent.")
+	)
+
+	add_child(dlg)
+	dlg.popup_centered(Vector2i(400, 200))
+	dlg.move_to_foreground()
+	await get_tree().process_frame
+	code.grab_focus()
+
+	print("=== Dialog opened, waiting for user input ===")
+	
+	# Use a different approach - wait for the dialog to be closed
+	var result = ""
+	var dialog_closed = false
+	
+	# Connect to the confirmed signal properly
+	dlg.confirmed.connect(func():
+		result = code.text.strip_edges()
+		dialog_closed = true
+		print("=== Dialog confirmed ===")
+		print("Code entered: ", result)
+	)
+	
+	# Also handle dialog close
+	dlg.close_requested.connect(func():
+		dialog_closed = true
+		print("=== Dialog closed without confirm ===")
+	)
+	
+	# Wait for dialog to be closed
+	while not dialog_closed:
+		await get_tree().process_frame
+	
+	dlg.queue_free()
+	return result
 
 # =====================
 # = Cancel / Helpers  =
