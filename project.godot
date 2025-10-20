@@ -11,5 +11,19 @@ config_version=5
 [application]
 
 config/name="Godot AWS Client"
+run/main_scene="res://scenes/UI/auth_screen.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
-config/icon="res://icon.svg"
+
+[autoload]
+
+Env="*res://scripts/utils/env_loader.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/resizable=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
