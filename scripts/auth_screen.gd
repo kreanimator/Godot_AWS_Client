@@ -16,6 +16,7 @@ extends Control
 @onready var submit_button: Button = $AuthPanel/VBoxContainer/ButtonContainer/SubmitButton
 @onready var cancel_button: Button = $AuthPanel/VBoxContainer/ButtonContainer/CancelButton
 @onready var loading_label: Label = $AuthPanel/VBoxContainer/LoadingLabel
+@onready var confirm_dialog: AcceptDialog = preload("uid://b8x70a02a1c3").instantiate()
 
 # --- Networking ---
 var http: HTTPRequest
@@ -42,10 +43,19 @@ func _ready():
 	sign_up_tab.pressed.connect(_on_sign_up_tab_pressed)
 	submit_button.pressed.connect(_on_submit_pressed)
 	cancel_button.pressed.connect(_on_cancel_pressed)
+	
+	# Setup confirmation dialog
+	_setup_confirm_dialog()
 
 	# Set default values for testing
 	_set_default_values()
 	_update_ui_for_mode()
+
+func _setup_confirm_dialog():
+	add_child(confirm_dialog)
+	confirm_dialog.code_confirmed.connect(_on_code_confirmed)
+	confirm_dialog.dialog_cancelled.connect(_on_dialog_cancelled)
+	confirm_dialog.resend_requested.connect(_on_resend_requested)
 
 func _set_default_values():
 	# Default values for testing
@@ -373,86 +383,54 @@ func _friendly_cognito_error(res: Dictionary) -> String:
 	return (msg if msg != "" else "Authentication error (%s)" % typ)
 
 # =====================
-# = Email Confirmation Modal =
+# = Email Confirmation Dialog =
 # =====================
 # Show a modal asking for the confirmation code. Returns code (String) or "" if canceled.
 func _prompt_confirm_code(email: String, region: String, client_id: String) -> String:
-	var dlg := AcceptDialog.new()
-	dlg.title = "Confirm your email"
-	dlg.size = Vector2(400, 200)
-	dlg.min_size = Vector2(400, 200)
-	dlg.max_size = Vector2(400, 200)
-
-	# Layout
-	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	box.add_theme_constant_override("separation", 10)
+	# Store current context for dialog callbacks
+	_current_email = email
+	_current_region = region
+	_current_client_id = client_id
+	_confirmation_result = ""
+	_confirmation_waiting = true
 	
-	var lbl := Label.new()
-	lbl.text = "Enter the verification code sent to:\n" + email
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Show the dialog
+	confirm_dialog.show_dialog(email)
 	
-	var code := LineEdit.new()
-	code.placeholder_text = "Enter 6-digit code here"
-	code.max_length = 12
-	code.text = ""
-	code.custom_minimum_size = Vector2(200, 30)
-	
-	box.add_child(lbl)
-	box.add_child(code)
-	dlg.add_child(box)
-
-	# Buttons: OK + Resend
-	dlg.get_ok_button().text = "Confirm"
-	dlg.add_button("Resend code", false, "resend")
-	
-	# Handle resend button
-	dlg.custom_action.connect(func(action):
-		if action == "resend":
-			_show_auth_status("Resending code…")
-			var r := await _cognito_call(region, "ResendConfirmationCode", {
-				"ClientId": client_id,
-				"Username": email
-			})
-			if r.get("__error__", false):
-				_show_error(_friendly_cognito_error(r))
-			else:
-				_show_auth_status("Verification code sent.")
-	)
-
-	add_child(dlg)
-	dlg.popup_centered(Vector2i(400, 200))
-	dlg.move_to_foreground()
-	await get_tree().process_frame
-	code.grab_focus()
-
-	print("=== Dialog opened, waiting for user input ===")
-	
-	# Use a different approach - wait for the dialog to be closed
-	var result = ""
-	var dialog_closed = false
-	
-	# Connect to the confirmed signal properly
-	dlg.confirmed.connect(func():
-		result = code.text.strip_edges()
-		dialog_closed = true
-		print("=== Dialog confirmed ===")
-		print("Code entered: ", result)
-	)
-	
-	# Also handle dialog close
-	dlg.close_requested.connect(func():
-		dialog_closed = true
-		print("=== Dialog closed without confirm ===")
-	)
-	
-	# Wait for dialog to be closed
-	while not dialog_closed:
+	# Wait for result
+	while _confirmation_waiting:
 		await get_tree().process_frame
 	
-	dlg.queue_free()
-	return result
+	return _confirmation_result
+
+# Dialog callback variables
+var _current_email: String = ""
+var _current_region: String = ""
+var _current_client_id: String = ""
+var _confirmation_result: String = ""
+var _confirmation_waiting: bool = false
+
+func _on_code_confirmed(code: String):
+	_confirmation_result = code
+	_confirmation_waiting = false
+	print("=== Dialog confirmed ===")
+	print("Code entered: ", code)
+
+func _on_dialog_cancelled():
+	_confirmation_result = ""
+	_confirmation_waiting = false
+	print("=== Dialog cancelled ===")
+
+func _on_resend_requested():
+	_show_auth_status("Resending code…")
+	var r := await _cognito_call(_current_region, "ResendConfirmationCode", {
+		"ClientId": _current_client_id,
+		"Username": _current_email
+	})
+	if r.get("__error__", false):
+		_show_error(_friendly_cognito_error(r))
+	else:
+		_show_auth_status("Verification code sent.")
 
 # =====================
 # = Cancel / Helpers  =

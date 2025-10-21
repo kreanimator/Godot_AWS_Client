@@ -4,72 +4,72 @@ Description: Cognito User Pool for direct client auth (no Hosted UI)
 
 Parameters:
   Stage:
-    Type: String
-    Default: dev
-    AllowedValues: [dev, prod]
+	Type: String
+	Default: dev
+	AllowedValues: [dev, prod]
 
   UserPoolName:
-    Type: String
-    Default: GGAuthUserPool
+	Type: String
+	Default: GGAuthUserPool
 
 Conditions:
   IsProd: !Equals [!Ref Stage, 'prod']
 
 Resources:
   GGUserPool:
-    Type: AWS::Cognito::UserPool
-    Properties:
-      UserPoolName: !If [IsProd, !Ref UserPoolName, !Sub "${Stage}-${UserPoolName}"]
-      UsernameAttributes: [email]
-      AutoVerifiedAttributes: [email]
-      AccountRecoverySetting:
-        RecoveryMechanisms:
-          - Name: verified_email
-            Priority: 1
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 8
-          RequireUppercase: true
-          RequireLowercase: true
-          RequireNumbers: true
-          RequireSymbols: false
-      MfaConfiguration: "OFF"   # change to OPTIONAL/ON if you enable MFA
+	Type: AWS::Cognito::UserPool
+	Properties:
+	  UserPoolName: !If [IsProd, !Ref UserPoolName, !Sub "${Stage}-${UserPoolName}"]
+	  UsernameAttributes: [email]
+	  AutoVerifiedAttributes: [email]
+	  AccountRecoverySetting:
+		RecoveryMechanisms:
+		  - Name: verified_email
+			Priority: 1
+	  Policies:
+		PasswordPolicy:
+		  MinimumLength: 8
+		  RequireUppercase: true
+		  RequireLowercase: true
+		  RequireNumbers: true
+		  RequireSymbols: false
+	  MfaConfiguration: "OFF"   # change to OPTIONAL/ON if you enable MFA
 
   GGUserPoolClient:
-    Type: AWS::Cognito::UserPoolClient
-    Properties:
-      ClientName: !Sub "gg-appclient-${Stage}"
-      UserPoolId: !Ref GGUserPool
-      GenerateSecret: false
-      ExplicitAuthFlows:
-        - ALLOW_USER_SRP_AUTH
-        - ALLOW_USER_PASSWORD_AUTH
-        - ALLOW_REFRESH_TOKEN_AUTH
-      # <-- This is where PreventUserExistenceErrors belongs
-      PreventUserExistenceErrors: ENABLED
-      AccessTokenValidity: 24
-      IdTokenValidity: 24
-      RefreshTokenValidity: 30
-      TokenValidityUnits:
-        AccessToken: hours
-        IdToken: hours
-        RefreshToken: days
+	Type: AWS::Cognito::UserPoolClient
+	Properties:
+	  ClientName: !Sub "gg-appclient-${Stage}"
+	  UserPoolId: !Ref GGUserPool
+	  GenerateSecret: false
+	  ExplicitAuthFlows:
+		- ALLOW_USER_SRP_AUTH
+		- ALLOW_USER_PASSWORD_AUTH
+		- ALLOW_REFRESH_TOKEN_AUTH
+	  # <-- This is where PreventUserExistenceErrors belongs
+	  PreventUserExistenceErrors: ENABLED
+	  AccessTokenValidity: 24
+	  IdTokenValidity: 24
+	  RefreshTokenValidity: 30
+	  TokenValidityUnits:
+		AccessToken: hours
+		IdToken: hours
+		RefreshToken: days
 
 Outputs:
   UserPoolArn:
-    Description: User Pool ARN
-    Value: !GetAtt GGUserPool.Arn
-    Export:
-      Name: !Sub 'gg-cognito-arn-${Stage}'
+	Description: User Pool ARN
+	Value: !GetAtt GGUserPool.Arn
+	Export:
+	  Name: !Sub 'gg-cognito-arn-${Stage}'
 
   UserPoolId:
-    Description: User Pool ID
-    Value: !Ref GGUserPool
-    Export:
-      Name: !Sub 'gg-cognito-user-pool-id-${Stage}'
+	Description: User Pool ID
+	Value: !Ref GGUserPool
+	Export:
+	  Name: !Sub 'gg-cognito-user-pool-id-${Stage}'
 
   UserPoolClientId:
-    Description: User Pool Client ID
-    Value: !Ref GGUserPoolClient
-    Export:
-      Name: !Sub 'gg-cognito-client-id-${Stage}'
+	Description: User Pool Client ID
+	Value: !Ref GGUserPoolClient
+	Export:
+	  Name: !Sub 'gg-cognito-client-id-${Stage}'

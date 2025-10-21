@@ -1,0 +1,34 @@
+[gd_scene load_steps=2 format=3 uid="uid://b8x70a02a1c3"]
+
+[ext_resource type="Script" uid="uid://87kguyu7fk0j" path="res://scripts/confirm_dialog.gd" id="1_0x1y2"]
+
+[node name="ConfirmDialog" type="AcceptDialog"]
+oversampling_override = 1.0
+title = "Confirm your email"
+size = Vector2i(400, 200)
+visible = true
+min_size = Vector2i(400, 200)
+max_size = Vector2i(400, 200)
+script = ExtResource("1_0x1y2")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -49.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="EmailLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "email@example.com"
+horizontal_alignment = 1
+
+[node name="CodeInput" type="LineEdit" parent="VBoxContainer"]
+custom_minimum_size = Vector2(200, 30)
+layout_mode = 2
+placeholder_text = "Enter 6-digit code here"
+max_length = 12
