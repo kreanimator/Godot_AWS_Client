@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Core S3 bucket for infrastructure and artifacts.
+
+Resources:
+  AppControlBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+       BucketName: !Sub app-control-${AWS::AccountId}
+
+  LogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "logs-${AWS::Region}-${AWS::AccountId}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      AccessControl: LogDeliveryWrite
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      VersioningConfiguration:
+        Status: Suspended
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn:
+      - LogBucket
+    Properties:
+      Bucket: !Ref LogBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub 'arn:aws:s3:::${LogBucket}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/*
+
+  Autotest01Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "autotest-01-${AWS::AccountId}"
+
+  Autotest03Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "autotest-03-${AWS::AccountId}"
+
+
+Outputs:
+  LogBucketArn:
+    Description: ARN of the Log S3 Bucket
+    Value: !GetAtt LogBucket.Arn
+    Export:
+      Name: 'log-bucket-arn'
