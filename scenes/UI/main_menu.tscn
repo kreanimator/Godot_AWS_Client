@@ -1,0 +1,104 @@
+[gd_scene load_steps=2 format=3 uid="uid://b8x70a02a1c5"]
+
+[ext_resource type="Script" uid="uid://b3a4c0y1ahyun" path="res://scripts/main_menu.gd" id="1_0x1y2"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_0x1y2")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.2, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Game Main Menu"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="PlayButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Play Game"
+
+[node name="SettingsButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Settings"
+
+[node name="ProfileButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Profile"
+
+[node name="LogoutButton" type="Button" parent="VBoxContainer"]
+modulate = Color(1, 0.5, 0.5, 1)
+layout_mode = 2
+text = "Logout"
+
+[node name="UserInfoPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -250.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = 100.0
+grow_horizontal = 0
+
+[node name="UserInfoVBox" type="VBoxContainer" parent="UserInfoPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="UserDisplayName" type="Label" parent="UserInfoPanel/UserInfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Welcome, User!"
+horizontal_alignment = 2
+
+[node name="UserIDLabel" type="Label" parent="UserInfoPanel/UserInfoVBox"]
+modulate = Color(0.7, 0.7, 0.7, 1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "ID: Loading..."
+horizontal_alignment = 2
+
+[node name="UserEmailLabel" type="Label" parent="UserInfoPanel/UserInfoVBox"]
+modulate = Color(0.7, 0.7, 0.7, 1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Email: Loading..."
+horizontal_alignment = 2

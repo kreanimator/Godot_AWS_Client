@@ -1,6 +1,18 @@
-[gd_scene load_steps=2 format=3 uid="uid://xlkqytbyljca"]
+[gd_scene load_steps=3 format=3 uid="uid://xlkqytbyljca"]
 
 [ext_resource type="Script" uid="uid://wwpoi3g4rgm4" path="res://scripts/auth_screen.gd" id="1_0x1y2"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
+bg_color = Color(0.15, 0.2, 0.35, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.6, 0.8, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
 
 [node name="AuthScreen" type="Control"]
 layout_mode = 3
@@ -11,14 +23,23 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_0x1y2")
 
-[node name="ColorRect" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.2, 0.2, 0.3, 1)
+color = Color(0.05, 0.1, 0.2, 1)
+
+[node name="BackgroundPattern" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.15, 0.3, 0.3)
 
 [node name="AuthPanel" type="Panel" parent="."]
 layout_mode = 1
@@ -27,12 +48,13 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -350.0
-offset_top = -250.0
-offset_right = 350.0
-offset_bottom = 250.0
+offset_left = -400.0
+offset_top = -300.0
+offset_right = 400.0
+offset_bottom = 300.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="AuthPanel"]
 layout_mode = 1
@@ -48,9 +70,11 @@ grow_vertical = 2
 
 [node name="Header" type="Label" parent="AuthPanel/VBoxContainer"]
 layout_mode = 2
-text = "Game Authentication"
+text = "⚔️ ADVENTURE AWAITS ⚔️"
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
 
 [node name="ModeToggle" type="HBoxContainer" parent="AuthPanel/VBoxContainer"]
 layout_mode = 2
@@ -59,12 +83,16 @@ layout_mode = 2
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
-text = "Sign In"
+text = "🏰 Sign In"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.8, 0.9, 1, 1)
 
 [node name="SignUpTab" type="Button" parent="AuthPanel/VBoxContainer/ModeToggle"]
 layout_mode = 2
 toggle_mode = true
-text = "Sign Up"
+text = "⚡ Sign Up"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.8, 0.9, 1, 1)
 
 [node name="HSeparator" type="HSeparator" parent="AuthPanel/VBoxContainer"]
 layout_mode = 2
@@ -74,22 +102,35 @@ layout_mode = 2
 
 [node name="EmailLabel" type="Label" parent="AuthPanel/VBoxContainer/FormContainer"]
 layout_mode = 2
-text = "Email:"
+text = "📧 Email:"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
 
 [node name="Email" type="LineEdit" parent="AuthPanel/VBoxContainer/FormContainer"]
 layout_mode = 2
 placeholder_text = "Enter your email"
 alignment = 1
+theme_override_font_sizes/font_size = 14
 
 [node name="PasswordLabel" type="Label" parent="AuthPanel/VBoxContainer/FormContainer"]
 layout_mode = 2
-text = "Password:"
+text = "🔐 Password:"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
 
 [node name="Password" type="LineEdit" parent="AuthPanel/VBoxContainer/FormContainer"]
 layout_mode = 2
 placeholder_text = "Enter your password"
 alignment = 1
+theme_override_font_sizes/font_size = 14
 secret = true
+
+[node name="ForgotPasswordButton" type="Button" parent="AuthPanel/VBoxContainer/FormContainer"]
+layout_mode = 2
+text = "🔑 Forgot Password?"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
+flat = true
 
 [node name="ConfirmPasswordLabel" type="Label" parent="AuthPanel/VBoxContainer/FormContainer"]
 visible = false
@@ -125,14 +166,26 @@ layout_mode = 2
 
 [node name="SubmitButton" type="Button" parent="AuthPanel/VBoxContainer/ButtonContainer"]
 layout_mode = 2
-text = "Sign In"
+text = "⚔️ Enter Adventure"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.9, 1, 0.9, 1)
 
 [node name="CancelButton" type="Button" parent="AuthPanel/VBoxContainer/ButtonContainer"]
 layout_mode = 2
-text = "Cancel"
+text = "🔄 Reset"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
+
+[node name="ExitButton" type="Button" parent="AuthPanel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+text = "🚪 Exit"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 0.7, 0.7, 1)
 
 [node name="LoadingLabel" type="Label" parent="AuthPanel/VBoxContainer"]
 visible = false
 layout_mode = 2
-text = "Loading..."
+text = "⚡ Preparing your adventure..."
 horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.8, 0.9, 1, 1)

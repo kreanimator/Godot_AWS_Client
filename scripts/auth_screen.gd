@@ -5,6 +5,7 @@ extends Control
 @onready var sign_up_tab: Button = $AuthPanel/VBoxContainer/ModeToggle/SignUpTab
 @onready var email_field: LineEdit = $AuthPanel/VBoxContainer/FormContainer/Email
 @onready var password_field: LineEdit = $AuthPanel/VBoxContainer/FormContainer/Password
+@onready var forgot_password_button: Button = $AuthPanel/VBoxContainer/FormContainer/ForgotPasswordButton
 @onready var confirm_password_field: LineEdit = $AuthPanel/VBoxContainer/FormContainer/ConfirmPassword
 @onready var username_field: LineEdit = $AuthPanel/VBoxContainer/FormContainer/Username
 @onready var confirm_password_label: Label = $AuthPanel/VBoxContainer/FormContainer/ConfirmPasswordLabel
@@ -14,8 +15,10 @@ extends Control
 @onready var error_label: Label = $AuthPanel/VBoxContainer/ErrorLabel
 @onready var submit_button: Button = $AuthPanel/VBoxContainer/ButtonContainer/SubmitButton
 @onready var cancel_button: Button = $AuthPanel/VBoxContainer/ButtonContainer/CancelButton
+@onready var exit_button: Button = $AuthPanel/VBoxContainer/ButtonContainer/ExitButton
 @onready var loading_label: Label = $AuthPanel/VBoxContainer/LoadingLabel
 @onready var confirm_dialog: AcceptDialog = preload("uid://b8x70a02a1c3").instantiate()
+@onready var password_reset_dialog: AcceptDialog = preload("res://scenes/UI/password_reset_dialog.tscn").instantiate()
 
 # --- Components ---
 var http: HTTPRequest
@@ -58,6 +61,11 @@ func _setup_components():
 	confirm_dialog.code_confirmed.connect(_on_code_confirmed)
 	confirm_dialog.dialog_cancelled.connect(_on_dialog_cancelled)
 	confirm_dialog.resend_requested.connect(_on_resend_requested)
+	
+	# Setup password reset dialog
+	add_child(password_reset_dialog)
+	password_reset_dialog.password_reset_requested.connect(_on_password_reset_requested)
+	password_reset_dialog.dialog_cancelled.connect(_on_password_reset_cancelled)
 
 func _setup_ui():
 	# Connect UI signals
@@ -65,6 +73,8 @@ func _setup_ui():
 	sign_up_tab.pressed.connect(_on_sign_up_tab_pressed)
 	submit_button.pressed.connect(_on_submit_pressed)
 	cancel_button.pressed.connect(_on_cancel_pressed)
+	exit_button.pressed.connect(_on_exit_pressed)
+	forgot_password_button.pressed.connect(_on_forgot_password_pressed)
 	_update_ui_for_mode()
 
 func _setup_testing():
@@ -96,6 +106,9 @@ func _update_ui_for_mode():
 	confirm_password_field_node.visible = is_sign_up_mode
 	username_label.visible = is_sign_up_mode
 	username_field_node.visible = is_sign_up_mode
+	
+	# Show forgot password button only in sign-in mode
+	forgot_password_button.visible = not is_sign_up_mode
 
 	submit_button.text = "Sign Up" if is_sign_up_mode else "Sign In"
 	_clear_error()
@@ -223,13 +236,28 @@ func _handle_signin():
 		return
 
 	_show_auth_status("Success!")
-	authentication_success.emit({
+	
+	# Extract user data from ID token (JWT payload)
+	var user_data_from_token = _extract_user_data_from_token(id_token)
+	
+	# Prepare user data
+	var user_data = {
+		"user_id": user_data_from_token.user_id,
 		"email": email,
-		"username": username_field.text.strip_edges() if is_sign_up_mode else email.split("@")[0],
+		"username": user_data_from_token.username,
 		"id_token": id_token,
 		"access_token": access_token,
 		"refresh_token": refresh_token
-	})
+	}
+	
+	# Store in global session
+	UserSession.set_user_data(user_data)
+	
+	# Emit success signal
+	authentication_success.emit(user_data)
+	
+	# Switch to main menu
+	_switch_to_main_menu(user_data)
 
 # =====================
 # = Dialog Handling  =
@@ -264,6 +292,68 @@ func _on_resend_requested():
 		_show_auth_status("Verification code sent.")
 
 # =====================
+# = JWT Token Parsing =
+# =====================
+func _extract_user_data_from_token(id_token: String) -> Dictionary:
+	# JWT tokens have 3 parts separated by dots: header.payload.signature
+	var parts = id_token.split(".")
+	if parts.size() != 3:
+		print("Invalid JWT token format")
+		return {"user_id": "", "username": ""}
+	
+	# Decode the payload (middle part)
+	var payload_b64 = parts[1]
+	# Add padding if needed
+	while payload_b64.length() % 4 != 0:
+		payload_b64 += "="
+	
+	# Decode base64
+	var payload_bytes = Marshalls.base64_to_raw(payload_b64)
+	var payload_json = payload_bytes.get_string_from_utf8()
+	
+	# Parse JSON
+	var json = JSON.new()
+	var parse_result = json.parse(payload_json)
+	if parse_result != OK:
+		print("Failed to parse JWT payload")
+		return {"user_id": "", "username": ""}
+	
+	var payload = json.data
+	if typeof(payload) != TYPE_DICTIONARY:
+		print("JWT payload is not a dictionary")
+		return {"user_id": "", "username": ""}
+	
+	# Extract user data from JWT
+	var user_id = payload.get("sub", "")
+	var username = payload.get("preferred_username", "")
+	
+	# Fallback to email username if preferred_username is not set
+	if username == "":
+		var email = payload.get("email", "")
+		if email != "":
+			username = email.split("@")[0]
+	
+	print("Extracted from token - User ID: ", user_id, " Username: ", username)
+	return {"user_id": user_id, "username": username}
+
+# =====================
+# = Scene Management  =
+# =====================
+func _switch_to_main_menu(user_data: Dictionary):
+	# Load and switch to main menu scene
+	var main_menu_scene = preload("res://scenes/UI/main_menu.tscn")
+	var main_menu_instance = main_menu_scene.instantiate()
+	
+	# Set user data
+	main_menu_instance.set_user_data(user_data)
+	
+	# Replace current scene
+	get_tree().root.add_child(main_menu_instance)
+	get_tree().current_scene = main_menu_instance
+	queue_free()
+
+
+# =====================
 # = UI Helpers        =
 # =====================
 func _on_cancel_pressed():
@@ -275,11 +365,62 @@ func _on_cancel_pressed():
 	is_sign_up_mode = false
 	_update_ui_for_mode()
 
+func _on_exit_pressed():
+	print("Exit button pressed - Quitting application")
+	get_tree().quit()
+
+func _on_forgot_password_pressed():
+	print("Forgot password requested")
+	_handle_forgot_password()
+
+# =====================
+# = Forgot Password   =
+# =====================
+func _handle_forgot_password():
+	var email = email_field.text.strip_edges()
+	
+	if email.is_empty():
+		_show_error("Please enter your email address first")
+		return
+	
+	if not ValidationUtils.is_valid_email(email):
+		_show_error("Please enter a valid email address")
+		return
+	
+	_show_auth_status("Sending password reset code...")
+	
+	# Call Cognito forgot password
+	var result = await cognito_client.forgot_password(email)
+	
+	if result.get("__error__", false):
+		_show_error(ErrorHandler.get_friendly_error(result))
+		return
+	
+	_show_auth_status("Password reset code sent! Check your email.")
+	
+	# Show password reset dialog
+	password_reset_dialog.show_dialog(email)
+
+func _on_password_reset_requested(email: String, code: String, new_password: String):
+	_show_auth_status("Resetting password...")
+	var reset_result = await cognito_client.confirm_forgot_password(email, code, new_password)
+	
+	if reset_result.get("__error__", false):
+		_show_error(ErrorHandler.get_friendly_error(reset_result))
+	else:
+		_show_auth_status("Password reset successful! You can now sign in.")
+		# Clear password field
+		password_field.text = ""
+
+func _on_password_reset_cancelled():
+	_show_auth_status("Password reset cancelled.")
+
 func _set_loading_state(loading: bool):
 	is_loading = loading
 	loading_label.visible = loading
 	submit_button.disabled = loading
 	cancel_button.disabled = loading
+	exit_button.disabled = loading
 	sign_in_tab.disabled = loading
 	sign_up_tab.disabled = loading
 

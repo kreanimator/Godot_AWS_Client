@@ -91,3 +91,25 @@ func resend_confirmation_code(email: String) -> Dictionary:
 		"ClientId": client_id,
 		"Username": email
 	})
+
+# Global sign out (invalidates all tokens on server)
+func global_sign_out(access_token: String) -> Dictionary:
+	return await call_api("GlobalSignOut", {
+		"AccessToken": access_token
+	})
+
+# Forgot password - initiate password reset
+func forgot_password(email: String) -> Dictionary:
+	return await call_api("ForgotPassword", {
+		"ClientId": client_id,
+		"Username": email
+	})
+
+# Confirm forgot password - set new password
+func confirm_forgot_password(email: String, confirmation_code: String, new_password: String) -> Dictionary:
+	return await call_api("ConfirmForgotPassword", {
+		"ClientId": client_id,
+		"Username": email,
+		"ConfirmationCode": confirmation_code,
+		"Password": new_password
+	})
