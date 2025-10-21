@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: DDB - game_state (time-ordered saves)
+Parameters:
+  TableName:
+    Type: String
+    Default: game-state
+  Stage:
+    Type: String
+    Default: dev
+
+Resources:
+  GameStateDdb:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: character_id
+          AttributeType: S
+        - AttributeName: ts              # epoch millis
+          AttributeType: N
+      KeySchema:
+        - AttributeName: character_id
+          KeyType: HASH
+        - AttributeName: ts
+          KeyType: RANGE
+      Tags:
+        - Key: Env
+          Value: !Ref Stage
+
+Outputs:
+  GameStateTableExport:
+    Description: GameState table name
+    Value: !Ref GameStateDdb
+    Export:
+      Name: !Sub ddb-${TableName}

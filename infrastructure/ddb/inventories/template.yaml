@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: DDB - inventories
+Parameters:
+  TableName:
+    Type: String
+    Default: inventories
+  Stage:
+    Type: String
+    Default: dev
+
+Resources:
+  InventoriesDdb:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: character_id
+          AttributeType: S
+        - AttributeName: item_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: character_id
+          KeyType: HASH
+        - AttributeName: item_id
+          KeyType: RANGE
+      Tags:
+        - Key: Env
+          Value: !Ref Stage
+
+Outputs:
+  InventoriesTableExport:
+    Description: Inventories table name
+    Value: !Ref InventoriesDdb
+    Export:
+      Name: !Sub ddb-${TableName}
