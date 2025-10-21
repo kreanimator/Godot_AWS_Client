@@ -19,9 +19,9 @@ func _ready():
 func show_dialog(email: String):
 	email_label.text = email
 	code_input.text = ""
-	code_input.grab_focus()
 	popup_centered(Vector2i(400, 200))
-	move_to_foreground()
+	grab_focus()
+	code_input.grab_focus()
 
 func _on_confirmed():
 	var code = code_input.text.strip_edges()
